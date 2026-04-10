@@ -78,14 +78,46 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const unsubPatients = syncCollection("patients", setPatients);
-    const unsubAppointments = syncCollection("appointments", setAppointments);
-    const unsubPrescriptions = syncCollection("prescriptions", setPrescriptions);
-    const unsubMedicines = syncCollection("medicines", setMedicines);
-    const unsubInvoices = syncCollection("invoices", setInvoices);
-    const unsubDoctors = syncCollection("doctors", setDoctors);
+    let syncedCount = 0;
+    const totalCollections = 6;
+    
+    // Helper to track first sync for speed
+    const onFirstSync = () => {
+      syncedCount++;
+      if (syncedCount >= totalCollections) {
+        setLoading(false);
+      }
+    };
 
-    setLoading(false);
+    const unsubPatients = onSnapshot(query(collection(db, "patients")), (snapshot) => {
+      setPatients(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Patient)));
+      onFirstSync();
+    });
+
+    const unsubAppointments = onSnapshot(query(collection(db, "appointments")), (snapshot) => {
+      setAppointments(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Appointment)));
+      onFirstSync();
+    });
+
+    const unsubPrescriptions = onSnapshot(query(collection(db, "prescriptions")), (snapshot) => {
+      setPrescriptions(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Prescription)));
+      onFirstSync();
+    });
+
+    const unsubMedicines = onSnapshot(query(collection(db, "medicines")), (snapshot) => {
+      setMedicines(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Medicine)));
+      onFirstSync();
+    });
+
+    const unsubInvoices = onSnapshot(query(collection(db, "invoices")), (snapshot) => {
+      setInvoices(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Invoice)));
+      onFirstSync();
+    });
+
+    const unsubDoctors = onSnapshot(query(collection(db, "doctors")), (snapshot) => {
+      setDoctors(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Doctor)));
+      onFirstSync();
+    });
 
     return () => {
       unsubPatients();
@@ -97,12 +129,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  // Initialize data if empty
+  // Initialize data ONLY if absolutely empty (runs in background)
   useEffect(() => {
     const initialize = async () => {
-      const pSnap = await getDocs(collection(db, "patients"));
-      if (pSnap.empty) {
-        // Upload mock records if DB is fresh
+      if (!loading && patients.length === 0 && medicines.length === 0) {
+        // Only run if we actually have NO data after sync
         mockPatients.forEach(p => addDoc(collection(db, "patients"), p));
         mockAppointments.forEach(a => addDoc(collection(db, "appointments"), { ...a, doctorName: "Dr. Pradeep Vind" }));
         mockPrescriptions.forEach(p => addDoc(collection(db, "prescriptions"), { ...p, doctorName: "Dr. Pradeep Vind" }));
@@ -114,12 +145,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           discountPercentage: 0, 
           discountAmount: 0 
         }));
-        // Add default doctor
         addDoc(collection(db, "doctors"), { name: "Dr. Pradeep Vind", specialty: "General Physician" });
       }
     };
-    initialize();
-  }, []);
+    if (!loading) initialize();
+  }, [loading]);
 
   const [clinicName, setClinicName] = useState("PharmaCare India");
 
