@@ -15,7 +15,7 @@ const Dashboard = () => {
     <div className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Welcome back, Admin. Here's today's overview.</p>
+        <p className="text-muted-foreground text-sm mt-1">Welcome back, SRI. Here's today's clinic overview.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -133,7 +133,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     addPrescription: async (p) => { await addDoc(collection(db, "prescriptions"), p); },
     updatePrescription: async (id, p) => { 
       await updateDoc(doc(db, "prescriptions", id), p); 
-      // Automated Billing Logic
+      // Automated Billing & Stock Reduction Logic
       if (p.status === "dispensed") {
         const rxSnap = await getDoc(doc(db, "prescriptions", id));
         if (rxSnap.exists()) {
@@ -142,17 +142,21 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           
           for (const item of rx.medicines) {
             const med = medicines.find(m => m.id === item.medicineId);
-            const amount = med ? (med.pricePerUnit * item.quantity) : 0;
-            invoiceItems.push({
-              description: `${item.name} x${item.quantity}`,
-              amount: amount,
-              type: "Medicine"
-            });
+            if (med) {
+              const amount = med.pricePerUnit * item.quantity;
+              invoiceItems.push({
+                description: `${item.name} x${item.quantity}`,
+                amount: amount,
+                type: "Medicine"
+              });
+
+              // Reduce Stock
+              const newStock = Math.max(0, med.stock - item.quantity);
+              await updateDoc(doc(db, "medicines", med.id), { stock: newStock });
+            }
           }
 
-          // Add Consultation Fee automatically? User didn't specify, but usually yes.
           invoiceItems.push({ description: "Consultation Fee", amount: 500, type: "Consultation" });
-
           const subtotal = invoiceItems.reduce((acc, curr) => acc + curr.amount, 0);
 
           await addDoc(collection(db, "invoices"), {

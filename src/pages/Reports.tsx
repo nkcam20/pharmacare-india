@@ -11,18 +11,37 @@ const Reports = () => {
   const completedAppts = appointments.filter((a) => a.status === "completed").length;
   const scheduledAppts = appointments.filter((a) => a.status === "scheduled").length;
 
-  const revenueByMonth = [
-    { month: "Jan", revenue: 32000 },
-    { month: "Feb", revenue: 35000 },
-    { month: "Mar", revenue: totalRevenue || 45280 },
-  ];
+  const getMonthlyRevenue = () => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const lastSixMonths = [];
+    const today = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthLabel = months[d.getMonth()];
+      const year = d.getFullYear();
+      
+      const monthlyTotal = invoices
+        .filter(inv => {
+          const invDate = new Date(inv.date);
+          return inv.status === "paid" && invDate.getMonth() === d.getMonth() && invDate.getFullYear() === year;
+        })
+        .reduce((sum, inv) => sum + inv.total, 0);
+
+      lastSixMonths.push({ month: `${monthLabel} ${year}`, revenue: monthlyTotal });
+    }
+    return lastSixMonths;
+  };
+
+  const revenueByMonth = getMonthlyRevenue();
 
   const categoryData = [
-    { name: "Paid", value: invoices.filter((i) => i.status === "paid").length || 1 },
-    { name: "Pending", value: invoices.filter((i) => i.status === "pending").length || 1 },
-    { name: "Completed Appts", value: completedAppts || 1 },
-    { name: "Scheduled Appts", value: scheduledAppts || 1 },
-  ];
+    { name: "Paid", value: invoices.filter((i) => i.status === "paid").length },
+    { name: "Pending", value: invoices.filter((i) => i.status === "pending").length },
+    { name: "Overdue", value: invoices.filter((i) => i.status === "overdue").length },
+  ].filter(d => d.value > 0);
+
+  if (categoryData.length === 0) categoryData.push({ name: "No Invoices", value: 1 });
 
   return (
     <div className="space-y-6 animate-fade-in">
