@@ -13,7 +13,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { toast } from "@/hooks/use-toast";
 
 const Prescriptions = () => {
-  const { prescriptions, addPrescription, updatePrescription, deletePrescription, patients, medicines: medList } = useData();
+  const { prescriptions, addPrescription, updatePrescription, deletePrescription, patients, doctors, medicines: medList } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Prescription | null>(null);
@@ -30,11 +30,24 @@ const Prescriptions = () => {
   };
   const removeMed = (i: number) => setForm({ ...form, medicines: form.medicines.filter((_, idx) => idx !== i) });
 
-  const handleSave = () => {
-    if (!form.patientName || !form.doctorName || form.medicines.length === 0) { toast({ title: "Fill all fields and add at least 1 medicine", variant: "destructive" }); return; }
-    if (editing) { updatePrescription(editing.id, form); toast({ title: "Prescription updated" }); }
-    else { addPrescription(form); toast({ title: "Prescription created" }); }
-    setDialogOpen(false);
+  const handleSave = async () => {
+    if (!form.patientName || !form.doctorName || form.medicines.length === 0) { 
+      toast({ title: "Fill all fields and add at least 1 medicine", variant: "destructive" }); 
+      return; 
+    }
+    
+    try {
+      if (editing) { 
+        await updatePrescription(editing.id, form); 
+        toast({ title: "Prescription updated" }); 
+      } else { 
+        await addPrescription(form); 
+        toast({ title: "Prescription created" }); 
+      }
+      setDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Error saving prescription", variant: "destructive" });
+    }
   };
 
   const handleDelete = () => { if (deleteId) { deletePrescription(deleteId); toast({ title: "Prescription deleted" }); } setDeleteId(null); };

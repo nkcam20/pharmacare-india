@@ -5,6 +5,7 @@ import {
   BarChart3, BookOpen, LogOut, Activity, Settings
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useData } from "@/context/DataContext";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -23,6 +24,7 @@ interface AppLayoutProps {
 }
 
 const AppLayout = ({ children }: AppLayoutProps) => {
+  const { clinicName } = useData();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -35,14 +37,14 @@ const AppLayout = ({ children }: AppLayoutProps) => {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="no-print w-64 flex-shrink-0 bg-sidebar flex flex-col">
+      <aside className="no-print w-64 flex-shrink-0 bg-sidebar flex flex-col shadow-xl">
         <div className="p-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
               <Activity className="w-5 h-5 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-sidebar-accent-foreground tracking-tight">PharmaCare</h1>
+              <h1 className="text-sm font-bold text-sidebar-accent-foreground tracking-tight truncate w-32">{clinicName}</h1>
               <p className="text-[11px] text-sidebar-foreground">Management System</p>
             </div>
           </div>

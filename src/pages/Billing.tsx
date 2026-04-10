@@ -333,7 +333,7 @@ const Billing = () => {
                     <Activity className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-black tracking-tighter text-primary">PHARMACARE INDIA</h1>
+                    <h1 className="text-3xl font-black tracking-tighter text-primary uppercase">{clinicName}</h1>
                     <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Clinic Management System</p>
                   </div>
                 </div>
@@ -416,7 +416,7 @@ const Billing = () => {
               {/* Footer */}
               <div className="mt-20 pt-10 border-t border-slate-100 text-center">
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Thank you for your visit</p>
-                <p className="text-xs text-slate-300">PharmaCare India — Advanced Clinic Management System</p>
+                <p className="text-xs text-slate-300">{clinicName} — Advanced Clinic Management System</p>
               </div>
             </div>
           )}

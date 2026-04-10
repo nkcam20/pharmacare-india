@@ -16,6 +16,8 @@ import {
 import { mockPatients, mockAppointments, mockPrescriptions, mockMedicines, mockInvoices } from "@/data/mockData";
 
 interface DataContextType {
+  clinicName: string;
+  updateClinicName: (name: string) => Promise<void>;
   patients: Patient[];
   addPatient: (p: Omit<Patient, "id">) => Promise<void>;
   updatePatient: (id: string, p: Partial<Patient>) => Promise<void>;
@@ -69,7 +71,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Helper to sync a collection
   const syncCollection = (collName: string, setter: (data: any[]) => void) => {
     return onSnapshot(query(collection(db, collName)), (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setter(data);
     });
   };
@@ -118,7 +120,24 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     initialize();
   }, []);
 
+  const [clinicName, setClinicName] = useState("PharmaCare India");
+
+  useEffect(() => {
+    const unsubSettings = onSnapshot(doc(db, "settings", "clinic_info"), (doc) => {
+      if (doc.exists()) {
+        setClinicName(doc.data().name);
+      }
+    });
+    return () => unsubSettings();
+  }, []);
+
+  const updateClinicName = async (name: string) => {
+    await setDoc(doc(db, "settings", "clinic_info"), { name });
+  };
+
   const value: DataContextType = {
+    clinicName,
+    updateClinicName,
     patients,
     addPatient: async (p) => { await addDoc(collection(db, "patients"), p); },
     updatePatient: async (id, p) => { await updateDoc(doc(db, "patients", id), p); },
@@ -132,36 +151,41 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     prescriptions,
     addPrescription: async (p) => { await addDoc(collection(db, "prescriptions"), p); },
     updatePrescription: async (id, p) => { 
+      // Get current version from state
+      const currentRx = prescriptions.find(rx => rx.id === id);
+      if (!currentRx) return;
+
+      const updatedRx = { ...currentRx, ...p };
       await updateDoc(doc(db, "prescriptions", id), p); 
+
       // Automated Billing & Stock Reduction Logic
-      if (p.status === "dispensed") {
-        const rxSnap = await getDoc(doc(db, "prescriptions", id));
-        if (rxSnap.exists()) {
-          const rx = rxSnap.data() as Prescription;
-          const invoiceItems: InvoiceItem[] = [];
-          
-          for (const item of rx.medicines) {
-            const med = medicines.find(m => m.id === item.medicineId);
-            if (med) {
-              const amount = med.pricePerUnit * item.quantity;
-              invoiceItems.push({
-                description: `${item.name} x${item.quantity}`,
-                amount: amount,
-                type: "Medicine"
-              });
+      if (updatedRx.status === "dispensed" && currentRx.status !== "dispensed") {
+        const invoiceItems: InvoiceItem[] = [];
+        
+        for (const item of updatedRx.medicines) {
+          const med = medicines.find(m => m.id === item.medicineId);
+          if (med) {
+            const amount = med.pricePerUnit * item.quantity;
+            invoiceItems.push({
+              description: `${item.name} x${item.quantity}`,
+              amount: amount,
+              type: "Medicine"
+            });
 
-              // Reduce Stock
-              const newStock = Math.max(0, med.stock - item.quantity);
-              await updateDoc(doc(db, "medicines", med.id), { stock: newStock });
-            }
+            // Reduce Stock
+            const newStock = Math.max(0, med.stock - item.quantity);
+            await updateDoc(doc(db, "medicines", med.id), { stock: newStock });
           }
+        }
 
-          invoiceItems.push({ description: "Consultation Fee", amount: 500, type: "Consultation" });
-          const subtotal = invoiceItems.reduce((acc, curr) => acc + curr.amount, 0);
+        invoiceItems.push({ description: "Consultation Fee", amount: 500, type: "Consultation" });
+        const subtotal = invoiceItems.reduce((acc, curr) => acc + curr.amount, 0);
 
+        const existingInvoice = invoices.find(inv => inv.prescriptionId === id);
+        if (!existingInvoice) {
           await addDoc(collection(db, "invoices"), {
-            patientId: rx.patientId,
-            patientName: rx.patientName,
+            patientId: updatedRx.patientId,
+            patientName: updatedRx.patientName,
             date: new Date().toISOString().split("T")[0],
             items: invoiceItems,
             subtotal: subtotal,
@@ -169,7 +193,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             discountPercentage: 0,
             discountAmount: 0,
             total: subtotal,
-            status: "pending"
+            status: "pending",
+            prescriptionId: id
           });
         }
       }
