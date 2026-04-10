@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { Patient, Appointment, Prescription, Medicine, Invoice } from "@/types/pharmacy";
+import { Doctor, Patient, Appointment, Prescription, Medicine, Invoice, InvoiceItem } from "@/types/pharmacy";
 import { db } from "@/lib/firebase";
 import { 
   collection, 
@@ -11,7 +10,8 @@ import {
   query, 
   orderBy,
   getDocs,
-  setDoc
+  setDoc,
+  getDoc
 } from "firebase/firestore";
 import { mockPatients, mockAppointments, mockPrescriptions, mockMedicines, mockInvoices } from "@/data/mockData";
 
@@ -40,6 +40,12 @@ interface DataContextType {
   addInvoice: (i: Omit<Invoice, "id">) => Promise<void>;
   updateInvoice: (id: string, i: Partial<Invoice>) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
+
+  doctors: Doctor[];
+  addDoctor: (d: Omit<Doctor, "id">) => Promise<void>;
+  updateDoctor: (id: string, d: Partial<Doctor>) => Promise<void>;
+  deleteDoctor: (id: string) => Promise<void>;
+
   loading: boolean;
 }
 
@@ -57,6 +63,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Helper to sync a collection
@@ -73,6 +80,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const unsubPrescriptions = syncCollection("prescriptions", setPrescriptions);
     const unsubMedicines = syncCollection("medicines", setMedicines);
     const unsubInvoices = syncCollection("invoices", setInvoices);
+    const unsubDoctors = syncCollection("doctors", setDoctors);
 
     setLoading(false);
 
@@ -82,19 +90,20 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       unsubPrescriptions();
       unsubMedicines();
       unsubInvoices();
+      unsubDoctors();
     };
   }, []);
 
-  // Initialize data if empty (Optional - for first time setup)
+  // Initialize data if empty
   useEffect(() => {
     const initialize = async () => {
       const pSnap = await getDocs(collection(db, "patients"));
       if (pSnap.empty) {
         // Upload mock records if DB is fresh
         mockPatients.forEach(p => addDoc(collection(db, "patients"), p));
-        mockAppointments.forEach(a => addDoc(collection(db, "appointments"), a));
-        mockPrescriptions.forEach(p => addDoc(collection(db, "prescriptions"), p));
-        mockMedicines.forEach(m => addDoc(collection(db, "medicines"), { ...m, type: "Tablet" }));
+        mockAppointments.forEach(a => addDoc(collection(db, "appointments"), { ...a, doctorName: "Dr. Pradeep Vind" }));
+        mockPrescriptions.forEach(p => addDoc(collection(db, "prescriptions"), { ...p, doctorName: "Dr. Pradeep Vind" }));
+        mockMedicines.forEach(m => addDoc(collection(db, "medicines"), { ...m, pricePerUnit: m.price, pricePerStrip: m.price * 10, quantityPerStrip: 10 }));
         mockInvoices.forEach(i => addDoc(collection(db, "invoices"), { 
           ...i, 
           subtotal: i.total, 
@@ -102,6 +111,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           discountPercentage: 0, 
           discountAmount: 0 
         }));
+        // Add default doctor
+        addDoc(collection(db, "doctors"), { name: "Dr. Pradeep Vind", specialty: "General Physician" });
       }
     };
     initialize();
@@ -120,7 +131,45 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
     prescriptions,
     addPrescription: async (p) => { await addDoc(collection(db, "prescriptions"), p); },
-    updatePrescription: async (id, p) => { await updateDoc(doc(db, "prescriptions", id), p); },
+    updatePrescription: async (id, p) => { 
+      await updateDoc(doc(db, "prescriptions", id), p); 
+      // Automated Billing Logic
+      if (p.status === "dispensed") {
+        const rxSnap = await getDoc(doc(db, "prescriptions", id));
+        if (rxSnap.exists()) {
+          const rx = rxSnap.data() as Prescription;
+          const invoiceItems: InvoiceItem[] = [];
+          
+          for (const item of rx.medicines) {
+            const med = medicines.find(m => m.id === item.medicineId);
+            const amount = med ? (med.pricePerUnit * item.quantity) : 0;
+            invoiceItems.push({
+              description: `${item.name} x${item.quantity}`,
+              amount: amount,
+              type: "Medicine"
+            });
+          }
+
+          // Add Consultation Fee automatically? User didn't specify, but usually yes.
+          invoiceItems.push({ description: "Consultation Fee", amount: 500, type: "Consultation" });
+
+          const subtotal = invoiceItems.reduce((acc, curr) => acc + curr.amount, 0);
+
+          await addDoc(collection(db, "invoices"), {
+            patientId: rx.patientId,
+            patientName: rx.patientName,
+            date: new Date().toISOString().split("T")[0],
+            items: invoiceItems,
+            subtotal: subtotal,
+            discountApplied: false,
+            discountPercentage: 0,
+            discountAmount: 0,
+            total: subtotal,
+            status: "pending"
+          });
+        }
+      }
+    },
     deletePrescription: async (id) => { await deleteDoc(doc(db, "prescriptions", id)); },
 
     medicines,
@@ -132,6 +181,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     addInvoice: async (i) => { await addDoc(collection(db, "invoices"), i); },
     updateInvoice: async (id, i) => { await updateDoc(doc(db, "invoices", id), i); },
     deleteInvoice: async (id) => { await deleteDoc(doc(db, "invoices", id)); },
+
+    doctors,
+    addDoctor: async (d) => { await addDoc(collection(db, "doctors"), d); },
+    updateDoctor: async (id, d) => { await updateDoc(doc(db, "doctors", id), d); },
+    deleteDoctor: async (id) => { await deleteDoc(doc(db, "doctors", id)); },
+
     loading
   };
 

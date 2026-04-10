@@ -11,7 +11,7 @@ import { useState } from "react";
 import { Medicine, MedicineType } from "@/types/pharmacy";
 import { toast } from "@/hooks/use-toast";
 
-const emptyMed = { name: "", category: "", stock: 0, price: 0, supplier: "", expiryDate: "", type: "Tablet" as MedicineType, quantityPerStrip: 10 };
+const emptyMed = { name: "", category: "", stock: 0, pricePerStrip: 0, pricePerUnit: 0, supplier: "", expiryDate: "", type: "Tablet" as MedicineType, quantityPerStrip: 10 };
 
 const Inventory = () => {
   const { medicines, addMedicine, updateMedicine, deleteMedicine } = useData();
@@ -27,7 +27,8 @@ const Inventory = () => {
       name: m.name, 
       category: m.category, 
       stock: m.stock, 
-      price: m.price, 
+      pricePerStrip: m.pricePerStrip || 0,
+      pricePerUnit: m.pricePerUnit || 0,
       supplier: m.supplier, 
       expiryDate: m.expiryDate, 
       type: m.type || "Tablet",
@@ -39,9 +40,19 @@ const Inventory = () => {
   const handleSave = async () => {
     if (!form.name.trim()) { toast({ title: "Name is required", variant: "destructive" }); return; }
     
-    const medData = { ...form };
+    const medData = { 
+      ...form, 
+      price: form.pricePerUnit // Keep price for UI consistency
+    };
+    
+    if (medData.type === "Tablet" && medData.quantityPerStrip && medData.pricePerStrip) {
+      medData.pricePerUnit = medData.pricePerStrip / medData.quantityPerStrip;
+      medData.price = medData.pricePerUnit;
+    }
+
     if (medData.type === "Syrup") {
       delete medData.quantityPerStrip;
+      medData.pricePerUnit = medData.pricePerStrip; // For syrup, strip price = unit price (bottle price)
     }
 
     if (editing) { await updateMedicine(editing.id, medData); toast({ title: "Medicine updated" }); }
@@ -68,9 +79,9 @@ const Inventory = () => {
               <TableHead>Medicine</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Strip Qty</TableHead>
+              <TableHead>Stock (Units)</TableHead>
+              <TableHead>Price/Unit</TableHead>
+              <TableHead>Strip Config</TableHead>
               <TableHead>Expiry</TableHead>
               <TableHead className="w-20">Actions</TableHead>
             </TableRow>
@@ -92,8 +103,15 @@ const Inventory = () => {
                     <span className={m.stock < 20 ? "text-warning font-semibold" : ""}>{m.stock}</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-semibold text-primary">₹{m.price.toLocaleString()}</TableCell>
-                <TableCell className="text-muted-foreground text-sm">{m.type === "Tablet" ? `${m.quantityPerStrip || 10} / strip` : "-"}</TableCell>
+                <TableCell className="font-semibold text-primary">₹{(m.pricePerUnit || 0).toFixed(2)}</TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {m.type === "Tablet" ? (
+                    <div className="flex flex-col">
+                      <span>₹{m.pricePerStrip} / strip</span>
+                      <span className="text-[10px]">{m.quantityPerStrip} tabs/strip</span>
+                    </div>
+                  ) : "-"}
+                </TableCell>
                 <TableCell className="text-muted-foreground text-xs">{m.expiryDate}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
@@ -128,29 +146,34 @@ const Inventory = () => {
               </Select>
             </div>
 
-            {form.type === "Tablet" && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
-                <Label>Quantity per Strip</Label>
-                <Input type="number" value={form.quantityPerStrip} onChange={(e) => setForm({ ...form, quantityPerStrip: parseInt(e.target.value) || 0 })} />
-              </div>
-            )}
-
             <div className="space-y-2">
               <Label>Category</Label>
               <Input placeholder="Analgesic" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
             </div>
+
+            <div className="space-y-2">
+              <Label>{form.type === "Tablet" ? "Price per Strip (₹)" : "Price per Bottle (₹)"}</Label>
+              <Input type="number" step="0.01" value={form.pricePerStrip} onChange={(e) => setForm({ ...form, pricePerStrip: parseFloat(e.target.value) || 0 })} />
+            </div>
+
+            {form.type === "Tablet" && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1">
+                <Label>Quantity Multiplier (Tabs/Strip)</Label>
+                <Input type="number" value={form.quantityPerStrip} onChange={(e) => setForm({ ...form, quantityPerStrip: parseInt(e.target.value) || 1 })} />
+              </div>
+            )}
             
             <div className="space-y-2">
-              <Label>Stock Quantity</Label>
+              <Label>Current Stock (Total Units)</Label>
               <Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: parseInt(e.target.value) || 0 })} />
             </div>
-            
-            <div className="space-y-2">
-              <Label>Price (₹)</Label>
-              <Input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} />
+
+            <div className="space-y-1 bg-primary/5 p-3 rounded-lg border border-primary/10 flex flex-col justify-center">
+              <Label className="text-xs text-primary/70">Calculated Price per Unit</Label>
+              <span className="text-xl font-bold text-primary">₹{form.type === "Tablet" ? (form.pricePerStrip / (form.quantityPerStrip || 1)).toFixed(2) : form.pricePerStrip.toFixed(2)}</span>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 col-span-2">
               <Label>Supplier</Label>
               <Input placeholder="ABC Pharma" value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
             </div>
@@ -162,7 +185,7 @@ const Inventory = () => {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="px-8">Cancel</Button>
-            <Button onClick={handleSave} className="px-8">{editing ? "Update Stock" : "Add to Inventory"}</Button>
+            <Button onClick={handleSave} className="px-8">{editing ? "Update Medicine" : "Add to Inventory"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

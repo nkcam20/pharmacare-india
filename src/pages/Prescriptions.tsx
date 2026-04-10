@@ -105,7 +105,7 @@ const Prescriptions = () => {
               <Label>Doctor *</Label>
               <Select value={form.doctorName} onValueChange={(v) => setForm({ ...form, doctorName: v })}>
                 <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
-                <SelectContent>{["Dr. Smith", "Dr. Patel", "Dr. Lee"].map((d) => (<SelectItem key={d} value={d}>{d}</SelectItem>))}</SelectContent>
+                <SelectContent>{doctors.map((d) => (<SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>))}</SelectContent>
               </Select>
             </div>
             <div>

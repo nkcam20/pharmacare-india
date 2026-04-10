@@ -1,9 +1,10 @@
 import { ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, CalendarDays, Pill, Package, Receipt,
-  BarChart3, BookOpen, LogOut, Activity
+  BarChart3, BookOpen, LogOut, Activity, Settings
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -13,6 +14,7 @@ const navItems = [
   { to: "/inventory", icon: Package, label: "Inventory" },
   { to: "/billing", icon: Receipt, label: "Billing" },
   { to: "/reports", icon: BarChart3, label: "Reports" },
+  { to: "/settings", icon: Settings, label: "Settings" },
   { to: "/guide", icon: BookOpen, label: "System Guide" },
 ];
 
@@ -22,6 +24,13 @@ interface AppLayoutProps {
 
 const AppLayout = ({ children }: AppLayoutProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("pharma_auth");
+    toast({ title: "Logged out", description: "You have been securely logged out." });
+    navigate("/login");
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -62,19 +71,22 @@ const AppLayout = ({ children }: AppLayoutProps) => {
         <div className="p-3 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2.5">
             <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-medium text-sidebar-accent-foreground">
-              AD
+              SR
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-accent-foreground truncate">Admin User</p>
-              <p className="text-[11px] text-sidebar-foreground truncate">admin@pharmacare.com</p>
+              <p className="text-sm font-medium text-sidebar-accent-foreground truncate">SRI</p>
+              <p className="text-[11px] text-sidebar-foreground truncate">pharmacare.india@system.com</p>
             </div>
-            <LogOut className="w-4 h-4 text-sidebar-foreground cursor-pointer hover:text-sidebar-accent-foreground transition-colors" />
+            <LogOut 
+              className="w-4 h-4 text-sidebar-foreground cursor-pointer hover:text-sidebar-accent-foreground transition-colors" 
+              onClick={handleLogout}
+            />
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto scroll-smooth">
         <div className="p-6 lg:p-8 max-w-7xl">
           {children}
         </div>

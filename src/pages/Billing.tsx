@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Receipt, Plus, Pencil, Trash2, Tag, CreditCard, User, Calendar, Percent } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Receipt, Plus, Pencil, Trash2, Tag, CreditCard, User, Calendar, Percent, Printer, Download, Activity, ExternalLink } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { Invoice, InvoiceItem } from "@/types/pharmacy";
 import StatusBadge from "@/components/StatusBadge";
 import { toast } from "@/hooks/use-toast";
@@ -16,7 +16,9 @@ import { toast } from "@/hooks/use-toast";
 const Billing = () => {
   const { invoices, addInvoice, updateInvoice, deleteInvoice, patients } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [activeInvoice, setActiveInvoice] = useState<Invoice | null>(null);
   const [editing, setEditing] = useState<Invoice | null>(null);
   
   const [form, setForm] = useState<Omit<Invoice, "id">>({ 
@@ -75,6 +77,12 @@ const Billing = () => {
     setDialogOpen(true); 
   };
 
+  const handlePrint = (inv: Invoice) => {
+    setActiveInvoice(inv);
+    setPrintOpen(true);
+    // Standard print handled by CSS @media print
+  };
+
   const addItem = () => {
     if (!itemForm.description || !itemForm.amount) return;
     setForm({ ...form, items: [...form.items, { ...itemForm }] });
@@ -113,7 +121,7 @@ const Billing = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 no-print">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2"><Receipt className="w-6 h-6 text-primary" /> Billing & Invoices</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -125,7 +133,7 @@ const Billing = () => {
         </Button>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-xl shadow-black/5">
+      <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-xl shadow-black/5 no-print">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
@@ -135,7 +143,7 @@ const Billing = () => {
               <TableHead className="font-bold">Billing Items</TableHead>
               <TableHead className="font-bold text-right">Amount</TableHead>
               <TableHead className="font-bold">Status</TableHead>
-              <TableHead className="w-20 text-center">Actions</TableHead>
+              <TableHead className="w-24 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -156,13 +164,14 @@ const Billing = () => {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex flex-col items-end">
-                    <span className="font-bold text-primary">₹{inv.total.toLocaleString()}</span>
+                    <span className="font-bold text-primary">₹{(inv.total || 0).toLocaleString()}</span>
                     {inv.discountApplied && <span className="text-[10px] text-emerald-600 font-medium leading-none">(-10%)</span>}
                   </div>
                 </TableCell>
                 <TableCell><StatusBadge status={inv.status} /></TableCell>
                 <TableCell>
                   <div className="flex gap-1 justify-center">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary hover:bg-primary/10" onClick={() => handlePrint(inv)} title="Print Receipt"><Printer className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary hover:bg-primary/10" onClick={() => openEdit(inv)}><Pencil className="w-4 h-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteId(inv.id)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
@@ -293,6 +302,124 @@ const Billing = () => {
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-full px-8">Discard</Button>
             <Button onClick={handleSave} className="rounded-full px-12 shadow-md shadow-primary/20">{editing ? "Update Invoice" : "Finalize & Save"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="no-print">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle>Print Receipt</DialogTitle>
+                <DialogDescription>Review and print the bill for {activeInvoice?.patientName}</DialogDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => window.print()} className="gap-2">
+                  <Printer className="w-4 h-4" /> Print Receipt
+                </Button>
+                <Button size="sm" onClick={() => window.print()} className="gap-2">
+                  <Download className="w-4 h-4" /> Download PDF
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {activeInvoice && (
+            <div id="receipt-content" className="p-8 border rounded-lg bg-white text-slate-900 shadow-sm print:p-0 print:border-none print:shadow-none">
+              {/* Header */}
+              <div className="flex justify-between items-start border-b-2 border-primary/20 pb-6 mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center">
+                    <Activity className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-black tracking-tighter text-primary">PHARMACARE INDIA</h1>
+                    <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Clinic Management System</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <h2 className="text-4xl font-black text-slate-200 uppercase tracking-tighter mb-1">INVOICE</h2>
+                  <p className="text-sm font-bold text-slate-400">#{activeInvoice.id.slice(-8).toUpperCase()}</p>
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="grid grid-cols-2 gap-12 mb-10">
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Bill To</p>
+                    <p className="text-xl font-bold">{activeInvoice.patientName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Patient ID</p>
+                    <p className="text-sm font-medium">#{activeInvoice.patientId.slice(-6).toUpperCase()}</p>
+                  </div>
+                </div>
+                <div className="text-right space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Invoice Date</p>
+                    <p className="text-xl font-bold">{activeInvoice.date}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Status</p>
+                    <p className={`text-sm font-bold uppercase ${activeInvoice.status === 'paid' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                      {activeInvoice.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="mb-10">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-slate-100 text-left">
+                      <th className="py-3 text-[10px] font-black uppercase text-slate-400 tracking-widest">Description</th>
+                      <th className="py-3 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Type</th>
+                      <th className="py-3 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeInvoice.items.map((item, idx) => (
+                      <tr key={idx} className="border-b border-slate-50">
+                        <td className="py-4 font-bold text-slate-700">{item.description}</td>
+                        <td className="py-4 text-center">
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded-full">{item.type}</span>
+                        </td>
+                        <td className="py-4 text-right font-black text-slate-900">₹{item.amount.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="flex justify-end pt-6">
+                <div className="w-1/2 space-y-3">
+                  <div className="flex justify-between items-center text-slate-500 font-medium">
+                    <span>Subtotal</span>
+                    <span>₹{activeInvoice.subtotal.toLocaleString()}</span>
+                  </div>
+                  {activeInvoice.discountApplied && (
+                    <div className="flex justify-between items-center text-emerald-600 font-bold">
+                      <span className="flex items-center gap-2">Discount (10%)</span>
+                      <span>-₹{activeInvoice.discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-4 border-t-2 border-primary/20">
+                    <span className="text-xl font-black text-slate-900">Grand Total</span>
+                    <span className="text-3xl font-black text-primary">₹{activeInvoice.total.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-20 pt-10 border-t border-slate-100 text-center">
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Thank you for your visit</p>
+                <p className="text-xs text-slate-300">PharmaCare India — Advanced Clinic Management System</p>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

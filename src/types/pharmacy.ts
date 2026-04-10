@@ -40,12 +40,20 @@ export interface Prescription {
 
 export type MedicineType = "Tablet" | "Syrup";
 
+export interface Doctor {
+  id: string;
+  name: string;
+  specialty: string;
+}
+
 export interface Medicine {
   id: string;
   name: string;
   category: string;
   stock: number;
-  price: number;
+  price: number; // For backward compatibility / display
+  pricePerStrip?: number;
+  pricePerUnit: number;
   supplier: string;
   expiryDate: string;
   type: MedicineType;
