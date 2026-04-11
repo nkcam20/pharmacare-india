@@ -116,6 +116,31 @@
   .print-break {
     page-break-before: always;
   }
+  
+  /* Radix UI Dialog Reset for perfect printing */
+  body[data-scroll-locked] {
+    overflow: visible !important;
+  }
+  [data-radix-focus-guard], 
+  [data-state="open"] > .fixed.inset-0 {
+    display: none !important; /* Hide dark backdrop */
+  }
+
+  /* Make sure dialog content flows normally to allow multi-page printing */
+  [role="dialog"] {
+    position: relative !important;
+    transform: none !important;
+    top: 0 !important;
+    left: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
   body {
     font-size: 12pt;
     color: #000;

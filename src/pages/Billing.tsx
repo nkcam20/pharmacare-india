@@ -63,16 +63,16 @@ const Billing = () => {
   const openEdit = (inv: Invoice) => { 
     setEditing(inv); 
     setForm({ 
-      patientId: inv.patientId, 
-      patientName: inv.patientName, 
-      date: inv.date, 
-      items: [...inv.items], 
-      subtotal: inv.subtotal || inv.total,
+      patientId: inv.patientId || "", 
+      patientName: inv.patientName || "", 
+      date: inv.date || new Date().toISOString().split("T")[0], 
+      items: inv.items ? [...inv.items] : [], 
+      subtotal: inv.subtotal || inv.total || 0,
       discountApplied: inv.discountApplied || false,
       discountPercentage: inv.discountPercentage || 0,
       discountAmount: inv.discountAmount || 0,
-      total: inv.total, 
-      status: inv.status 
+      total: inv.total || 0, 
+      status: inv.status || "pending" 
     }); 
     setDialogOpen(true); 
   };
@@ -94,18 +94,27 @@ const Billing = () => {
   };
 
   const handleSave = async () => {
-    if (!form.patientName || form.items.length === 0) { 
-      toast({ title: "Fill all fields and add at least 1 item", variant: "destructive" }); 
-      return; 
+    try {
+      if (!form.patientName || form.items.length === 0) { 
+        toast({ title: "Fill all fields and add at least 1 item", variant: "destructive" }); 
+        return; 
+      }
+      
+      // Sanitize form data to prevent Firebase "undefined" field crashes
+      const cleanForm = JSON.parse(JSON.stringify(form));
+      
+      if (editing) { 
+        await updateInvoice(editing.id, cleanForm); 
+        toast({ title: "Invoice updated successfully" }); 
+      } else { 
+        await addInvoice(cleanForm); 
+        toast({ title: "Invoice created successfully" }); 
+      }
+      setDialogOpen(false);
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "Failed to save invoice", description: error.message, variant: "destructive" });
     }
-    if (editing) { 
-      await updateInvoice(editing.id, form); 
-      toast({ title: "Invoice updated" }); 
-    } else { 
-      await addInvoice(form); 
-      toast({ title: "Invoice created" }); 
-    }
-    setDialogOpen(false);
   };
 
   const handleDelete = async () => { 

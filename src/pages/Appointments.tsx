@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 const emptyAppt = { patientId: "", patientName: "", doctorName: "", date: "", time: "", status: "scheduled" as "scheduled" | "completed" | "cancelled", reason: "" };
 
 const Appointments = () => {
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, patients } = useData();
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, patients, doctors } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Appointment | null>(null);
