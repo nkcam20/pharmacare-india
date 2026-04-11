@@ -92,7 +92,7 @@ const SystemGuide = () => {
             The application encompasses six core functional modules: <strong>Patient Records Management</strong>, <strong>Appointment Scheduling</strong>, <strong>Digital Prescription Management</strong>, <strong>Medicine Inventory Control</strong>, <strong>Billing and Invoice Generation</strong>, and <strong>Reports and Analytics</strong>. Each module supports full Create, Read, Update, and Delete (CRUD) operations with real-time data validation and persistent storage.
           </p>
           <p>
-            The system is built using a modern technology stack comprising React 18 for the user interface, TypeScript for type-safe development, Tailwind CSS for responsive styling, and Shadcn/UI for accessible component design. The application implements centralized state management using React Context API with localStorage persistence, enabling seamless offline capability.
+            The system is built using a modern technology stack comprising React 18 for the user interface, TypeScript for type-safe development, Tailwind CSS for responsive styling, and Shadcn/UI for accessible component design. The application implements centralized state management using React Context API with real-time Firebase Firestore database synchronization for persistent, cross-platform data availability.
           </p>
           <p>
             Key features include automated low-stock alerts for medicines below threshold levels, dynamic invoice generation with line-item calculations, patient search and filtering, appointment status tracking (scheduled, completed, cancelled), prescription dispensing workflow, and a complete PDF documentation export system.
@@ -160,7 +160,7 @@ const SystemGuide = () => {
             <ul className="list-disc list-inside space-y-2 text-muted-foreground ml-2">
               <li>To provide interactive analytical dashboards with revenue trend charts and status overview visualizations for data-driven decision making</li>
               <li>To design a responsive, modern user interface accessible across all device sizes using Tailwind CSS and Shadcn/UI components</li>
-              <li>To implement persistent data storage using browser localStorage for offline capability and data retention across sessions</li>
+              <li>To implement persistent cloud data storage using Firebase, ensuring cross-platform synchronization, dynamic read/write capabilities, and strict payload sanitization</li>
               <li>To demonstrate proficiency in modern web development technologies including React 18, TypeScript, and component-based architecture</li>
               <li>To create a comprehensive PDF documentation export system for project presentation, knowledge transfer, and academic submission</li>
             </ul>
@@ -246,6 +246,7 @@ const SystemGuide = () => {
             { layer: "Styling", tech: "Tailwind CSS — Utility-first CSS framework for responsive design" },
             { layer: "UI Components", tech: "Shadcn/UI — Accessible, customizable component library" },
             { layer: "State Management", tech: "React Context API — Centralized global state with provider pattern" },
+            { layer: "Database", tech: "Google Firebase (Firestore) — Real-time NoSQL cloud database" },
             { layer: "Routing", tech: "React Router v6 — Client-side navigation between application pages" },
             { layer: "Charts", tech: "Recharts — Interactive data visualization (bar charts, pie charts)" },
             { layer: "Icons", tech: "Lucide React — Modern, consistent SVG icon library" },
@@ -273,8 +274,8 @@ const SystemGuide = () => {
             <p className="text-muted-foreground leading-relaxed">PharmaCare follows a Single Page Application (SPA) architecture built with React. The application uses a layered architecture pattern with clear separation of concerns:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2 mt-2">
               <li><strong>Presentation Layer:</strong> React components (pages and reusable UI components) handle all user interface rendering</li>
-              <li><strong>State Management Layer:</strong> React Context (DataContext) provides centralized state with CRUD operations</li>
-              <li><strong>Persistence Layer:</strong> localStorage API provides client-side data storage with JSON serialization</li>
+              <li><strong>State Management Layer:</strong> React Context (DataContext) provides centralized state connected directly to Firebase</li>
+              <li><strong>Persistence Layer:</strong> Firebase Firestore provides secure, real-time NoSQL document storage across the cloud</li>
               <li><strong>Routing Layer:</strong> React Router v6 manages navigation between different application modules</li>
             </ul>
           </div>
@@ -321,63 +322,62 @@ const SystemGuide = () => {
 
       {/* 8. Database Schema */}
       <Section id="database-schema" title="8. Database Schema">
-        <p className="text-sm text-muted-foreground mb-3">Core tables and their relationships:</p>
-        <Code lang="sql">{`-- Patients table
-CREATE TABLE patients (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        VARCHAR(100) NOT NULL,
-  age         INT,
-  gender      VARCHAR(10),
-  phone       VARCHAR(20),
-  email       VARCHAR(255),
-  address     TEXT,
-  blood_group VARCHAR(5),
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+        <p className="text-sm text-muted-foreground mb-3">Core Google Firebase (Firestore) NoSQL Collection Structures:</p>
+        <Code lang="json">{`// Collection: patients
+{
+  "id": "string (UUID)",
+  "name": "string",
+  "age": "number",
+  "gender": "string",
+  "phone": "string",
+  "email": "string",
+  "address": "string",
+  "bloodGroup": "string"
+}
 
--- Appointments table
-CREATE TABLE appointments (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id  UUID REFERENCES patients(id) ON DELETE CASCADE,
-  doctor_name VARCHAR(100) NOT NULL,
-  date        DATE NOT NULL,
-  time        TIME NOT NULL,
-  reason      TEXT,
-  status      VARCHAR(20) DEFAULT 'scheduled',
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+// Collection: medicines (Inventory)
+{
+  "id": "string (UUID)",
+  "name": "string",
+  "category": "string",
+  "stock": "number",
+  "pricePerUnit": "number",
+  "pricePerStrip": "number",
+  "quantityPerStrip": "number",
+  "supplier": "string",
+  "expiryDate": "string (YYYY-MM-DD)"
+}
 
--- Medicines (Inventory)
-CREATE TABLE medicines (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name        VARCHAR(200) NOT NULL,
-  category    VARCHAR(100),
-  stock       INT DEFAULT 0,
-  price       DECIMAL(10,2),
-  supplier    VARCHAR(200),
-  expiry_date DATE,
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+// Collection: prescriptions
+{
+  "id": "string (UUID)",
+  "patientId": "string",
+  "patientName": "string",
+  "doctorName": "string",
+  "date": "string",
+  "status": "string ('pending' | 'dispensed')",
+  "medicines": [
+    { "medicineId": "string", "name": "string", "dosage": "string", "quantity": "number" }
+  ]
+}
 
--- Prescriptions
-CREATE TABLE prescriptions (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id  UUID REFERENCES patients(id) ON DELETE CASCADE,
-  doctor_name VARCHAR(100) NOT NULL,
-  date        DATE NOT NULL,
-  status      VARCHAR(20) DEFAULT 'pending',
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Invoices
-CREATE TABLE invoices (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  patient_id  UUID REFERENCES patients(id) ON DELETE CASCADE,
-  date        DATE NOT NULL,
-  total       DECIMAL(10,2) DEFAULT 0,
-  status      VARCHAR(20) DEFAULT 'pending',
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`}</Code>
+// Collection: invoices
+{
+  "id": "string (UUID)",
+  "patientId": "string",
+  "patientName": "string",
+  "date": "string",
+  "items": [
+    { "description": "string", "amount": "number", "type": "string" }
+  ],
+  "subtotal": "number",
+  "discountApplied": "boolean",
+  "discountPercentage": "number",
+  "discountAmount": "number",
+  "total": "number",
+  "status": "string ('pending' | 'paid' | 'overdue')",
+  "prescriptionId": "string (optional)"
+}`}</Code>
 
         <h3 className="text-sm font-semibold mt-4 mb-2">Entity Relationships</h3>
         <div className="bg-muted rounded-lg p-4 text-xs font-mono space-y-1">
@@ -398,7 +398,7 @@ CREATE TABLE invoices (
             { title: "9.3 Appointment Scheduling Module", desc: "The Appointment module enables scheduling and tracking of patient-doctor appointments. It features: patient selection from the registered patients list, doctor selection, date and time picker inputs, reason for visit field, and status management (scheduled/completed/cancelled)." },
             { title: "9.4 Prescription Management Module", desc: "This module handles digital prescription creation with a medicine line-item builder. Users can: select a patient and doctor, add multiple medicines with dosage instructions and quantities from the inventory, and track dispensing status (pending/dispensed)." },
             { title: "9.5 Inventory Management Module", desc: "The Inventory module tracks all medicines in stock with: medicine name, category, current stock quantity, unit price, supplier information, and expiry date. Visual alerts automatically appear for medicines with stock below 20 units." },
-            { title: "9.6 Billing and Invoice Module", desc: "The Billing module generates invoices with dynamic line items. Features include: patient selection, date entry, a line-item builder (description + amount), automatic total calculation, and payment status tracking (paid/pending/overdue)." },
+            { title: "9.6 Billing and Invoice Module", desc: "Generates invoices dynamically with a line-item builder. Features include: patient mapping, deep payload sanitization to prevent database crashes, real-time recalculation, and a proprietary dynamic CSS Printing engine that strips UI elements to generate stunning PDF receipts directly from the browser natively." },
             { title: "9.7 Reports and Analytics Module", desc: "The Reports module provides interactive data visualizations using the Recharts library. It displays: a Bar Chart showing revenue trends across months, a Pie Chart showing the distribution of invoice and appointment statuses, and summary cards." },
           ].map((mod) => (
             <div key={mod.title} className="bg-card rounded-lg border p-4">
@@ -507,20 +507,20 @@ npm run preview`}</Code>
 
       {/* 13. Frontend Guide */}
       <Section id="frontend-guide" title="13. Frontend Guide">
-        <p className="text-sm text-muted-foreground mb-3">The frontend is built with React + TypeScript + Tailwind CSS. Key patterns:</p>
-        <Code lang="tsx">{`// Example: Patient list component with data context
+        <p className="text-sm text-muted-foreground mb-3">The frontend is highly responsive and synced directly with Firebase. Key component architecture:</p>
+        <Code lang="tsx">{`// Example: Live syncing patient list using DataProvider DataContext
 import { useData } from '@/context/DataContext';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 const PatientList = () => {
-  const { patients } = useData();
+  const { patients } = useData(); // Array dynamically synced via onSnapshot()
 
   return (
     <Table>
       <TableBody>
         {patients.map((patient) => (
           <TableRow key={patient.id}>
-            <TableCell>{patient.name}</TableCell>
+            <TableCell className="font-bold">{patient.name}</TableCell>
             <TableCell>{patient.phone}</TableCell>
           </TableRow>
         ))}
@@ -646,7 +646,7 @@ const PatientList = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           {[
             { feat: "User Authentication", desc: "Login/logout with role-based access control", priority: "High" },
-            { feat: "Cloud Database", desc: "Migration from localStorage to cloud database", priority: "High" },
+            { feat: "Advanced Predictive Analytics", desc: "Machine learning integration to predict medicine stockouts based on patient traffic", priority: "High" },
             { feat: "SMS/Email Reminders", desc: "Automated appointment reminders and refill notifications", priority: "Medium" },
             { feat: "Drug Interaction Alerts", desc: "Automatic warnings for known drug interactions", priority: "Medium" },
             { feat: "Barcode Scanning", desc: "Scan medicine barcodes for quick inventory lookup", priority: "Medium" },
@@ -693,7 +693,8 @@ const PatientList = () => {
           <li>jsPDF Documentation — <span className="text-primary">https://github.com/parallax/jsPDF</span></li>
           <li>Vite Documentation — <span className="text-primary">https://vitejs.dev</span></li>
           <li>Vitest Documentation — <span className="text-primary">https://vitest.dev</span></li>
-          <li>MDN Web Docs – localStorage API — <span className="text-primary">https://developer.mozilla.org</span></li>
+          <li>MDN Web Docs — <span className="text-primary">https://developer.mozilla.org</span></li>
+          <li>Firebase Documentation — <span className="text-primary">https://firebase.google.com/docs</span></li>
         </ol>
       </Section>
     </div>
